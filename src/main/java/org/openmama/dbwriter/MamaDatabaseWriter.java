@@ -275,8 +275,8 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
     private void initDatabase() {
 
         // Initiliase Database
-        database.clear();
         database.connect();
+        database.clear();
 
     }
 

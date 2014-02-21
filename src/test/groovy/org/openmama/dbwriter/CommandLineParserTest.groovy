@@ -17,7 +17,7 @@ import static java.util.logging.Level.WARNING;
 
 /**
  *
- * @author Philip Preston (ppreston@nyx.com)
+ * @author Philip Preston (philippreston@mac.com)
  */
 class CommandLineParserTest {
     

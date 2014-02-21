@@ -5,8 +5,18 @@
  */
 package org.openmama.dbwriter;
 
-import com.mongodb.*;
-import com.wombat.mama.*;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.MongoClient;
+import com.mongodb.ServerAddress;
+import com.mongodb.WriteConcern;
+import com.wombat.mama.Mama;
+import com.wombat.mama.MamaDictionary;
+import com.wombat.mama.MamaException;
+import com.wombat.mama.MamaMsg;
+import com.wombat.mama.MamaMsgField;
+import com.wombat.mama.MamaSubscription;
 import org.apache.commons.pool.PoolableObjectFactory;
 import org.apache.commons.pool.impl.GenericObjectPool;
 
@@ -17,7 +27,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * @author Philip Preston (ppreston@nyx.com)
+ * @author Philip Preston (philippreston@mac.com)
  */
 public class MamaMongodb implements MamaDatabase {
 
@@ -31,29 +41,20 @@ public class MamaMongodb implements MamaDatabase {
     final private static int POOL_MIN_IDLE = 50;
     final private static int POOL_INIT_OBJECTS = 100;
 
-
-    final private MongoClient client;
+    final private GenericObjectPool<DBMessageContainer> dbMessageContainerPool;
     final private List<ServerAddress> servers;
-    final private DB database;
-    private DBCollection collection;
+    final private WriteConcern writeConcern;
 
-    private GenericObjectPool<DBMessageContainer> dbMessageContainerPool;
+    private MongoClient client;
+    private DBCollection tickstore_c;
+    private DB database;
 
     public MamaMongodb() {
 
         // Get the servers
         servers = new ArrayList<>(2);
         populateServers(Mama.getProperty(MAMA_PROP_NODES));
-
-        // Get the Database and collection
-        client = new MongoClient(servers);
-        database = client.getDB(DB_NAME);
-        WriteConcern writeConcern = getWriteConcern(Mama.getProperty(MAMA_PROP_WRITE_CONCERN));
-
-
-        // Create collection and set write concern
-        collection = database.createCollection(DB_COLLECTION_NAME, null);
-        collection.setWriteConcern(writeConcern);
+        writeConcern = getWriteConcern(Mama.getProperty(MAMA_PROP_WRITE_CONCERN));
 
         // Create Object pool
         dbMessageContainerPool = new GenericObjectPool<>(new PoolableObjectFactory<DBMessageContainer>() {
@@ -85,7 +86,6 @@ public class MamaMongodb implements MamaDatabase {
             }
 
         });
-
         dbMessageContainerPool.setMaxActive(POOL_MAX_SIZE);
         dbMessageContainerPool.setTestOnReturn(false);
         dbMessageContainerPool.setTestOnReturn(false);
@@ -101,7 +101,7 @@ public class MamaMongodb implements MamaDatabase {
 
         }
         catch (Exception ex) {
-            logger.severe(String.format("Error initilising object pool: %s\n", ex.getMessage()));
+            logger.severe(String.format("Error initialising object pool: %s\n", ex.getMessage()));
             System.exit(MamaDatabaseWriter.EXIT_FAIL);
         }
     }
@@ -138,7 +138,7 @@ public class MamaMongodb implements MamaDatabase {
             case "majority":
                 return WriteConcern.MAJORITY;
             default:
-                logger.warning(String.format("%s write concern not valid - using UNACKNOWLEDGED",config));
+                logger.warning(String.format("%s writeTo concern not valid - using UNACKNOWLEDGED", config));
                 return WriteConcern.UNACKNOWLEDGED;
         }
 
@@ -165,7 +165,11 @@ public class MamaMongodb implements MamaDatabase {
                 servers.add(new ServerAddress(host, port));
             }
             catch (final UnknownHostException ex) {
-                throw new MamaException(String.format("Server %s:%d was invalid: %s", host, port, ex.getMessage()));
+                logger.severe(String.format("Server %s:%d was unknown: %s", host, port, ex.getMessage()));
+                System.exit(MamaDatabaseWriter.EXIT_FAIL);
+            }
+            catch(final Exception ex) {
+                logger.severe(String.format("Error parsing servers %s", ex.getMessage()));
             }
 
         }
@@ -174,31 +178,34 @@ public class MamaMongodb implements MamaDatabase {
     @Override
     public void connect() {
 
-        // TODO - any indexes as should be created before writing
+        // Get the Database and tickstore_c
+        client = new MongoClient(servers);
+        database = client.getDB(DB_NAME);
+        tickstore_c = database.getCollection(DB_COLLECTION_NAME);
+
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public void writeMsg(final MamaMsg msg,final MamaDictionary dictionary,final MamaSubscription subscription) {
+    public void writeMsg(final MamaMsg msg, final MamaDictionary dictionary, final MamaSubscription subscription) {
 
 
         try {
 
             // Get an object
-            DBMessageContainer container = dbMessageContainerPool.borrowObject();
-            container.clear();
-            container.setSymbol(subscription.getSymbol());
-            container.setSeqNum(msg.getSeqNum());
+            DBMessageContainer document = dbMessageContainerPool.borrowObject();
+            document.setSymbol(subscription.getSymbol());
+            document.setSeqNum(msg.getSeqNum());
 
             for (Iterator<MamaMsgField> iterator = msg.iterator(dictionary); iterator.hasNext(); ) {
                 MamaMsgField field = iterator.next();
-                container.addField(field.getName(), msg.getFieldAsString(field.getFid(), dictionary));
+                document.addField(field.getName(), msg.getFieldAsString(field.getFid(), dictionary));
             }
 
-            container.write(collection);
+            document.writeTo(tickstore_c);
 
             // Return an object
-            dbMessageContainerPool.returnObject(container);
+            dbMessageContainerPool.returnObject(document);
 
         }
         catch (Exception ex) {
@@ -209,11 +216,17 @@ public class MamaMongodb implements MamaDatabase {
     @Override
     public void clear() {
 
-        // Drop the full collection
-        if (database.collectionExists(collection.getName())) {
-            collection.dropIndexes();
-            collection.drop();
+        // Drop the tickstore_c
+        if (database.collectionExists(tickstore_c.getName())) {
+            tickstore_c.dropIndexes();
+            tickstore_c.drop();
         }
+
+        // Create tickstore_c and set writeTo concern
+        tickstore_c = database.createCollection(DB_COLLECTION_NAME, null);
+        tickstore_c.setWriteConcern(writeConcern);
+
+        // TODO - any indexes as should be created before writing
 
     }
 
@@ -243,16 +256,16 @@ public class MamaMongodb implements MamaDatabase {
             document.put("seq_num", seqNum);
         }
 
-        public void write(final DBCollection collection) {
+        public void writeTo(final DBCollection collection) {
 
-            if(collection == null) {
+            if (collection == null) {
                 logger.severe("Collection is null - cannot write");
                 return;
             }
 
             // Add the sub document
-            document.put("detail",msg_document);
-            collection.save(document);
+            document.put("detail", msg_document);
+            collection.insert(document);
         }
 
         public void clear() {
@@ -262,8 +275,8 @@ public class MamaMongodb implements MamaDatabase {
 
         public void addField(final String name, final String fieldAsString) {
 
-            if(name == null){
-                logger.severe("Field name is null - cannot add to container");
+            if (name == null) {
+                logger.warning("Field name is null - cannot add to container");
                 return;
             }
 
