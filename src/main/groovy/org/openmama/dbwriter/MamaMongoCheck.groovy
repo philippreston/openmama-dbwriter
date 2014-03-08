@@ -1,4 +1,6 @@
 #!/usr/bin/env groovy -cp /Users/ppreston/.m2/repository/org/mongodb/mongo-java-driver/2.11.0/mongo-java-driver-2.11.0.jar
+package org.openmama.dbwriter
+
 import com.mongodb.BasicDBObject
 import com.mongodb.MongoClient
 import com.mongodb.ServerAddress

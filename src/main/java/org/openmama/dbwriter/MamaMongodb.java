@@ -17,8 +17,6 @@ import com.wombat.mama.MamaException;
 import com.wombat.mama.MamaMsg;
 import com.wombat.mama.MamaMsgField;
 import com.wombat.mama.MamaSubscription;
-import org.apache.commons.pool.PoolableObjectFactory;
-import org.apache.commons.pool.impl.GenericObjectPool;
 
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -37,11 +35,7 @@ public class MamaMongodb implements MamaDatabase {
     final private static String MAMA_PROP_WRITE_CONCERN = "mama.mongodb.write_concern";
     final private static String DB_NAME = "openmama";
     final private static String DB_COLLECTION_NAME = "tickstore";
-    final private static int POOL_MAX_SIZE = -1;
-    final private static int POOL_MIN_IDLE = 50;
-    final private static int POOL_INIT_OBJECTS = 100;
 
-    final private GenericObjectPool<DBMessageContainer> dbMessageContainerPool;
     final private List<ServerAddress> servers;
     final private WriteConcern writeConcern;
 
@@ -56,54 +50,6 @@ public class MamaMongodb implements MamaDatabase {
         populateServers(Mama.getProperty(MAMA_PROP_NODES));
         writeConcern = getWriteConcern(Mama.getProperty(MAMA_PROP_WRITE_CONCERN));
 
-        // Create Object pool
-        dbMessageContainerPool = new GenericObjectPool<>(new PoolableObjectFactory<DBMessageContainer>() {
-
-            @Override
-            public DBMessageContainer makeObject() throws Exception {
-                return new DBMessageContainer();
-            }
-
-            @Override
-            public void destroyObject(DBMessageContainer obj) throws Exception {
-                obj.clear();
-            }
-
-            @Override
-            public boolean validateObject(DBMessageContainer obj) {
-                return true;
-            }
-
-            @Override
-            public void activateObject(DBMessageContainer obj) throws Exception {
-                // No Action required to activate
-            }
-
-            @Override
-            public void passivateObject(DBMessageContainer obj) throws Exception {
-                // Need to clear contents on return to pool
-                obj.clear();
-            }
-
-        });
-        dbMessageContainerPool.setMaxActive(POOL_MAX_SIZE);
-        dbMessageContainerPool.setTestOnReturn(false);
-        dbMessageContainerPool.setTestOnReturn(false);
-        dbMessageContainerPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_GROW);
-        dbMessageContainerPool.setMinIdle(POOL_MIN_IDLE);
-
-        try {
-
-            // Preload Object Pool
-            for (int i = 0; i < POOL_INIT_OBJECTS; i++) {
-                dbMessageContainerPool.addObject();
-            }
-
-        }
-        catch (Exception ex) {
-            logger.severe(String.format("Error initialising object pool: %s\n", ex.getMessage()));
-            System.exit(MamaDatabaseWriter.EXIT_FAIL);
-        }
     }
 
     /**
@@ -193,7 +139,7 @@ public class MamaMongodb implements MamaDatabase {
         try {
 
             // Get an object
-            DBMessageContainer document = dbMessageContainerPool.borrowObject();
+            DBMessageContainer document = new DBMessageContainer();
             document.setSymbol(subscription.getSymbol());
             document.setSeqNum(msg.getSeqNum());
 
@@ -203,9 +149,6 @@ public class MamaMongodb implements MamaDatabase {
             }
 
             document.writeTo(tickstore_c);
-
-            // Return an object
-            dbMessageContainerPool.returnObject(document);
 
         }
         catch (Exception ex) {
@@ -259,8 +202,7 @@ public class MamaMongodb implements MamaDatabase {
         public void writeTo(final DBCollection collection) {
 
             if (collection == null) {
-                logger.severe("Collection is null - cannot write");
-                return;
+                throw new IllegalArgumentException("Collection is null - cannot write");
             }
 
             // Add the sub document
@@ -276,8 +218,7 @@ public class MamaMongodb implements MamaDatabase {
         public void addField(final String name, final String fieldAsString) {
 
             if (name == null) {
-                logger.warning("Field name is null - cannot add to container");
-                return;
+                throw new IllegalArgumentException("Field name is null - cannot add to container");
             }
 
             msg_document.put(name, fieldAsString);

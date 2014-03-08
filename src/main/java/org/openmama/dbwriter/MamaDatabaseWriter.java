@@ -55,6 +55,7 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
     final private String dictSource;
     final private String dictFile;
     final private String transportName;
+    final private boolean quiet;
     private boolean dictionaryComplete;
 
     // Database
@@ -119,6 +120,7 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
         fieldList = cmdLine.getFieldList();
         subjectList = cmdLine.getSubjects();
         transportName = cmdLine.getTransportName();
+        quiet = cmdLine.getQuiet();
 
         // Load bridge
         myBridge = Mama.loadBridge(cmdLine.getMiddleware());
@@ -311,11 +313,13 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
                 subscriptions.remove(subscription);
         }
 
+        // TODO add field filter
+
         database.writeMsg(msg, dictionary, subscription);
 
         // Output count
         count++;
-        if (count % 1000 == 0)
+        if (count % 1000 == 0 && !quiet)
             System.out.printf("Captured %d messages\n", count);
     }
 
