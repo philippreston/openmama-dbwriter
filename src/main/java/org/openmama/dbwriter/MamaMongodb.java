@@ -105,7 +105,7 @@ public class MamaMongodb implements MamaDatabase {
             int port = 0;
 
             try {
-                String[] address = s.split(":");
+                final String[] address = s.split(":");
                 host = address[0];
                 port = Integer.parseInt(address[1]);
                 servers.add(new ServerAddress(host, port));
@@ -139,19 +139,19 @@ public class MamaMongodb implements MamaDatabase {
         try {
 
             // Get an object
-            DBMessageContainer document = new DBMessageContainer();
+            final DBMessageContainer document = new DBMessageContainer();
             document.setSymbol(subscription.getSymbol());
             document.setSeqNum(msg.getSeqNum());
 
-            for (Iterator<MamaMsgField> iterator = msg.iterator(dictionary); iterator.hasNext(); ) {
-                MamaMsgField field = iterator.next();
+            for (final Iterator<MamaMsgField> iterator = msg.iterator(dictionary); iterator.hasNext(); ) {
+                final MamaMsgField field = iterator.next();
                 document.addField(field.getName(), msg.getFieldAsString(field.getFid(), dictionary));
             }
 
             document.writeTo(tickstore_c);
 
         }
-        catch (Exception ex) {
+        catch (final Exception ex) {
             logger.severe("Error on writeMsg: " + ex.getMessage());
         }
     }

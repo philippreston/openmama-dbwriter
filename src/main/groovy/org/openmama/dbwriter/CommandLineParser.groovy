@@ -6,7 +6,8 @@
 
 package org.openmama.dbwriter
 
-import java.util.logging.Level;
+import java.util.logging.Level
+
 import static java.util.logging.Level.*
 
 /**
@@ -32,18 +33,7 @@ class CommandLineParser {
 
     CommandLineParser() {
         // Set defaults 
-        sourceName = null;
-        transportName = "sub";
-        dictSourceName = "WOMBAT";
-        dictTransportName = null;
-        dictFileName = null;
-        requireInitial = true;
-        middleware = "wmw";
-        database = "cassandra";
-        numberOfThreads = 1;
-        quiet = false;
-        verbose = 0;
-        logLevel = WARNING;
+        clear();
     }
 
     def parse(def args) {

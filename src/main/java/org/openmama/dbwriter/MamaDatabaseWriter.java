@@ -73,10 +73,10 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
     public static void main(final String[] args) throws InterruptedException {
 
         // Parse Command Lines
-        CommandLineParser cmdLine = new CommandLineParser();
+        final CommandLineParser cmdLine = new CommandLineParser();
         cmdLine.parse(args);
 
-        MamaDatabaseWriter db_writer = MamaDatabaseWriter.getWriter(cmdLine);
+        final MamaDatabaseWriter db_writer = MamaDatabaseWriter.getWriter(cmdLine);
         db_writer.init();
 
         System.out.println("Type CTRL-C to exit.");
@@ -129,7 +129,7 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
         Mama.setLogLevel(cmdLine.getLogLevel());
     }
 
-    private MamaDatabase getDatabase(String name) {
+    private MamaDatabase getDatabase(final String name) {
 
         // Which Database writer
         switch (name.toLowerCase()) {
@@ -163,7 +163,7 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
             // Subscribe to topics
             for (final String subject : subjectList) {
 
-                MamaSubscription sub = new MamaSubscription();
+                final MamaSubscription sub = new MamaSubscription();
                 sub.setRequiresInitial(requireInitial);
                 sub.createSubscription(this, myDefaultQueue, mySource, subject, null);
             }
@@ -238,7 +238,7 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
         else {
 
             // Build dictionary from subscription
-            MamaDictionaryCallback dictCb = new MamaDictionaryCallback() {
+            final MamaDictionaryCallback dictCb = new MamaDictionaryCallback() {
 
                 @Override
                 public void onTimeout() {
@@ -248,7 +248,7 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
                 }
 
                 @Override
-                public void onError(String string) {
+                public void onError(final String string) {
                     logger.severe(String.format("Error getting dictionary: %s", string));
                     Mama.stop(myBridge);
                     dictionaryComplete = false;
@@ -261,7 +261,7 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
                 }
             };
 
-            MamaSubscription subscription = new MamaSubscription();
+            final MamaSubscription subscription = new MamaSubscription();
             dictionary = subscription.createDictionarySubscription(dictCb, myDefaultQueue, myDictSource, 10.0, 2);
 
             // Start dictionary subscription - block
@@ -284,18 +284,18 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
 
     //<editor-fold defaultstate="folded" desc="Subscription Callbacks">
     @Override
-    public void onCreate(MamaSubscription subscription) {
+    public void onCreate(final MamaSubscription subscription) {
         subscriptions.add(subscription);
     }
 
     @Override
-    public void onError(MamaSubscription ms, short s, int i, String string, Exception excptn) {
+    public void onError(final MamaSubscription ms, final short s, final int i, final String string, final Exception excptn) {
         throw new UnsupportedOperationException(
                 "Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public void onMsg(MamaSubscription subscription, MamaMsg msg) {
+    public void onMsg(final MamaSubscription subscription, final MamaMsg msg) {
 
         switch (MamaMsgType.typeForMsg(msg)) {
             case MamaMsgType.TYPE_DELETE:
@@ -324,25 +324,25 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
     }
 
     @Override
-    public void onQuality(MamaSubscription ms, short s, short s1, Object o) {
+    public void onQuality(final MamaSubscription ms, final short s, final short s1, final Object o) {
         throw new UnsupportedOperationException(
                 "Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public void onRecapRequest(MamaSubscription ms) {
+    public void onRecapRequest(final MamaSubscription ms) {
         throw new UnsupportedOperationException(
                 "Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public void onGap(MamaSubscription ms) {
+    public void onGap(final MamaSubscription ms) {
         throw new UnsupportedOperationException(
                 "Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public void onDestroy(MamaSubscription ms) {
+    public void onDestroy(final MamaSubscription ms) {
         throw new UnsupportedOperationException(
                 "Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
@@ -350,49 +350,49 @@ public class MamaDatabaseWriter implements MamaSubscriptionCallback,
 
     //<editor-fold defaultstate="folded" desc="Transport Callbacks">
     @Override
-    public void onConnect(short cause, final Object platformInfo) {
+    public void onConnect(final short cause, final Object platformInfo) {
         System.out.println("TRANSPORT CONNECTED!");
     }
 
     @Override
-    public void onDisconnect(short cause, final Object platformInfo) {
+    public void onDisconnect(final short cause, final Object platformInfo) {
         System.out.println("TRANSPORT DISCONNECTED!");
     }
 
     @Override
-    public void onReconnect(short cause, final Object platformInfo) {
+    public void onReconnect(final short cause, final Object platformInfo) {
         System.out.println("TRANSPORT RECONNECTED!");
     }
 
     @Override
-    public void onPublisherDisconnect(short cause, final Object platformInfo) {
+    public void onPublisherDisconnect(final short cause, final Object platformInfo) {
         System.out.println("PUBLISHER DISCONNECTED!");
     }
 
     @Override
-    public void onAccept(short cause, final Object platformInfo) {
+    public void onAccept(final short cause, final Object platformInfo) {
         System.out.println("TRANSPORT ACCEPTED!");
     }
 
     @Override
-    public void onAcceptReconnect(short cause, final Object platformInfo) {
+    public void onAcceptReconnect(final short cause, final Object platformInfo) {
         System.out.println("TRANSPORT RECONNECT ACCEPTED!");
     }
 
     @Override
-    public void onNamingServiceConnect(short cause, final Object platformInfo) {
+    public void onNamingServiceConnect(final short cause, final Object platformInfo) {
         System.out.println("NSD CONNECTED!");
     }
 
     @Override
-    public void onNamingServiceDisconnect(short cause, final Object platformInfo) {
+    public void onNamingServiceDisconnect(final short cause, final Object platformInfo) {
         System.out.println("NSD DISCONNECTED!");
     }
 
     @Override
-    public void onQuality(short cause, final Object platformInfo) {
+    public void onQuality(final short cause, final Object platformInfo) {
         System.out.println("TRANSPORT QUALITY!");
-        short quality = transport.getQuality();
+        final short quality = transport.getQuality();
         System.out.println("Transport quality is now " + MamaQuality.toString(quality) + ", cause " + MamaDQCause
                 .toString(cause) + ", platformInfo: " + platformInfo);
     }

@@ -4,7 +4,11 @@ import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
-import com.wombat.mama.*;
+import com.wombat.mama.Mama;
+import com.wombat.mama.MamaDictionary;
+import com.wombat.mama.MamaMsg;
+import com.wombat.mama.MamaMsgField;
+import com.wombat.mama.MamaSubscription;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -22,7 +26,7 @@ public class MamaCassandra implements MamaDatabase {
     private PreparedStatement insertStmt;
 
     public MamaCassandra() {
-        String nodes = Mama.getProperty("mama.cassandra.nodes");
+        final String nodes = Mama.getProperty("mama.cassandra.nodes");
         cluster = Cluster.builder().addContactPoints(nodes).build();
     }
 
@@ -33,17 +37,17 @@ public class MamaCassandra implements MamaDatabase {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void writeMsg(MamaMsg msg, MamaDictionary dictionary, MamaSubscription subscription) {
-        BoundStatement bound = new BoundStatement(insertStmt);
-        Map<Integer, String> fieldMap = new HashMap<>(50);
+    public void writeMsg(final MamaMsg msg, final MamaDictionary dictionary, final MamaSubscription subscription) {
+        final BoundStatement bound = new BoundStatement(insertStmt);
+        final Map<Integer, String> fieldMap = new HashMap<>(50);
         try {
-            for (Iterator<MamaMsgField> iterator = msg.iterator(dictionary); iterator.hasNext(); ) {
-                MamaMsgField field = iterator.next();
+            for (final Iterator<MamaMsgField> iterator = msg.iterator(dictionary); iterator.hasNext(); ) {
+                final MamaMsgField field = iterator.next();
                 fieldMap.put(field.getFid(), msg.getFieldAsString(field.getFid(), dictionary));
             }
             session.executeAsync(bound.bind(subscription.getSymbol() + "-" + msg.getSeqNum(), fieldMap));
         }
-        catch (Exception e) {
+        catch (final Exception e) {
             System.exit(1);
         }
     }
